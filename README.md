@@ -1,0 +1,1 @@
+Wrapper library around [https://github.com/orocos/orocos_kinematics_dynamics](orocos KDL). Provides a component [Source/RobotUtils/Public/RobotJointComponent.h](RobotJointComponent) for specifying robot joints. From a robot joint component, you can call `MakeChain` to make a kinematic chain, and then pass that to `SolveIK` to generate and apply an IK solution.
