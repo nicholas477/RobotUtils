@@ -109,7 +109,20 @@ bool URobotUtilsFunctionLibrary::SolveIK(const FSolveIKOptions& Options, const F
 
 	KDL::ChainFkSolverPos_recursive pos_solver(chain);
 	KDL::ChainIkSolverVel_pinv vel_solver(chain, Options.VelocityEpsilon);
-	
+
+	KDL::JntArray q_init(chain.getNrOfJoints());
+	if (chain.getNrOfJoints() == Options.InitialRotations.Rotations.Num())
+	{
+		for (int32 i = 0; i < Options.InitialRotations.Rotations.Num(); ++i)
+		{
+			q_init(i) = Options.InitialRotations.Rotations[i];
+		}
+	}
+
+	KDL::JntArray solution(chain.getNrOfJoints());
+	KDL::Frame desired_pose;
+	TransformToKDLFrame(DesiredEffectorTransform, desired_pose);
+
 	if (Options.bLimitJoints)
 	{
 		FRobotJointArray MinRotationLimit, MaxRotationLimit;
@@ -119,48 +132,29 @@ bool URobotUtilsFunctionLibrary::SolveIK(const FSolveIKOptions& Options, const F
 		MinRotationLimit.MakeKDLJointArray(KDLMinRotationLimit);
 		MaxRotationLimit.MakeKDLJointArray(KDLMaxRotationLimit);
 
-		KDL::ChainIkSolverPos_NR_JL ik_solver(chain, KDLMinRotationLimit, KDLMaxRotationLimit, pos_solver, vel_solver, Options.MaxIterations, Options.PositionEpsilon);
+		KDL::ChainIkSolverPos_NR_JL IKSolver(chain, KDLMinRotationLimit, KDLMaxRotationLimit, pos_solver, vel_solver, Options.MaxIterations, Options.PositionEpsilon);
 
-		KDL::JntArray q_init(chain.getNrOfJoints());
-		KDL::JntArray solution(chain.getNrOfJoints());
-		KDL::Frame desired_pose;
-		TransformToKDLFrame(DesiredEffectorTransform, desired_pose);
-
-		Result.Result = ik_solver.CartToJnt(q_init, desired_pose, solution);
-		Result.JointArray = FRobotJointArray::FromKDLJntArray(solution);
-		Result.ErrorString = UTF8_TO_TCHAR(ik_solver.strError(Result.Result));
-
-		if (Result.Result >= 0)
-		{
-			Result.bWasSuccessful = true;
-			return true;
-		}
-
-		Result.bWasSuccessful = false;
-		return false;
+		Result.Result = IKSolver.CartToJnt(q_init, desired_pose, solution);
+		Result.ErrorString = UTF8_TO_TCHAR(IKSolver.strError(Result.Result));
 	}
 	else
 	{
-		KDL::ChainIkSolverPos_NR ik_solver(chain, pos_solver, vel_solver, Options.MaxIterations, Options.PositionEpsilon);
+		KDL::ChainIkSolverPos_NR IKSolver(chain, pos_solver, vel_solver, Options.MaxIterations, Options.PositionEpsilon);
 
-		KDL::JntArray q_init(chain.getNrOfJoints());
-		KDL::JntArray solution(chain.getNrOfJoints());
-		KDL::Frame desired_pose;
-		TransformToKDLFrame(DesiredEffectorTransform, desired_pose);
-
-		Result.Result = ik_solver.CartToJnt(q_init, desired_pose, solution);
-		Result.JointArray = FRobotJointArray::FromKDLJntArray(solution);
-		Result.ErrorString = UTF8_TO_TCHAR(ik_solver.strError(Result.Result));
-
-		if (Result.Result >= 0)
-		{
-			Result.bWasSuccessful = true;
-			return true;
-		}
-
-		Result.bWasSuccessful = false;
-		return false;
+		Result.Result = IKSolver.CartToJnt(q_init, desired_pose, solution);
+		Result.ErrorString = UTF8_TO_TCHAR(IKSolver.strError(Result.Result));
 	}
+
+	Result.JointArray = FRobotJointArray::FromKDLJntArray(solution);
+
+	if (Result.Result >= 0)
+	{
+		Result.bWasSuccessful = true;
+		return true;
+	}
+
+	Result.bWasSuccessful = false;
+	return false;
 }
 
 TArray<FRotator> URobotUtilsFunctionLibrary::GetJointRotations(const FRobotChain& Chain, const FRobotJointArray& JointArray)

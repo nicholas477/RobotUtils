@@ -213,6 +213,27 @@ FRobotJointSceneProxy::FRobotJointSceneProxy(const URobotJointComponent* InCompo
 	Angle = FMath::Min(Angle, PI * 2.f);
 	BuildConeVerts(0.f, Angle, DrawSize, 0.f, 32, OutVerts, IndexBuffer.Indices);
 
+	for (FDynamicMeshVertex& Vert : OutVerts)
+	{
+		switch (Joint.Type)
+		{
+		case ERobotJointType::RotX:
+			Vert.Color = FColor::Red;
+			break;
+
+		case ERobotJointType::RotY:
+			Vert.Color = FColor::Green;
+			break;
+
+		case ERobotJointType::RotZ:
+			Vert.Color = FColor::Blue;
+			break;
+
+		default:
+			break;
+		}
+	}
+
 	VertexBuffers.InitFromDynamicVertex(&VertexFactory, OutVerts);
 
 	// Enqueue initialization of render resource
@@ -273,9 +294,8 @@ void FRobotJointSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 	}
 
 	auto ArrowMaterialRenderProxy = new FColoredMaterialRenderProxy(
-		GEngine->ArrowMaterial->GetRenderProxy(),
-		RenderColor,
-		"GizmoColor"
+		GEngine->LevelColorationUnlitMaterial->GetRenderProxy(),
+		RenderColor
 	);
 
 	Collector.RegisterOneFrameMaterialProxy(ArrowMaterialRenderProxy);
@@ -316,9 +336,10 @@ FPrimitiveViewRelevance FRobotJointSceneProxy::GetViewRelevance(const FSceneView
 	FPrimitiveViewRelevance ViewRelevance;
 	ViewRelevance.bDrawRelevance = IsShown(View);
 	ViewRelevance.bDynamicRelevance = true;
+	ViewRelevance.bRenderInMainPass = ShouldRenderInMainPass();
 	// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
 	ViewRelevance.bShadowRelevance = IsShadowCast(View);
-	ViewRelevance.bEditorPrimitiveRelevance = UseEditorCompositing(View);
+	ViewRelevance.bEditorPrimitiveRelevance = true;// UseEditorCompositing(View);
 	ViewRelevance.bVelocityRelevance = DrawsVelocity() && ViewRelevance.bOpaque && ViewRelevance.bRenderInMainPass;
 	return ViewRelevance;
 }

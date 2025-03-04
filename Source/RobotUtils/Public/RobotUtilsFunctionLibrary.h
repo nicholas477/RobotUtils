@@ -25,6 +25,9 @@ struct FSolveIKOptions
 	// Read the rotation limits from the joints and limit the IK rotations
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Robot|IK Options")
 	bool bLimitJoints = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Robot|IK Options")
+	FRobotJointArray InitialRotations;
 };
 
 USTRUCT(BlueprintType)
