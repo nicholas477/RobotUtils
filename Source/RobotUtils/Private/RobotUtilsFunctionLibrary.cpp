@@ -147,7 +147,15 @@ bool URobotUtilsFunctionLibrary::SolveIK(const FSolveIKOptions& Options, const F
 
 	Result.JointArray = FRobotJointArray::FromKDLJntArray(solution);
 
-	if (Result.Result >= 0)
+	KDL::Twist TargetTwist;
+	TwistToKDLTwist(Options.IVKOptions.TargetTwist, TargetTwist);
+
+	KDL::JntArray vel_arr(chain.getNrOfJoints());
+	Result.VelocityResult = vel_solver.CartToJnt(q_init, TargetTwist, vel_arr);
+	Result.VelocityErrorString = UTF8_TO_TCHAR(vel_solver.strError(Result.VelocityResult));
+	Result.VelocityJointArray = FRobotJointArray::FromKDLJntArray(vel_arr);
+
+	if (Result.Result >= 0 && Result.VelocityResult >= 0)
 	{
 		Result.bWasSuccessful = true;
 		return true;
@@ -225,6 +233,17 @@ FVector URobotUtilsFunctionLibrary::KDLVectorToVector(const KDL::Vector& Vector)
 	return FVector(Vector.x(), Vector.y(), Vector.z());
 }
 
+void URobotUtilsFunctionLibrary::TwistToKDLTwist(const FRobotTwist& Twist, KDL::Twist& OutTwist)
+{
+	VectorToKDLVector(Twist.Velocity, OutTwist.vel);
+	VectorToKDLVector(Twist.RotationalVelocity, OutTwist.rot);
+}
+
+FRobotTwist URobotUtilsFunctionLibrary::KDLTwistToTwist(const KDL::Twist& Twist)
+{
+	return FRobotTwist{ KDLVectorToVector(Twist.vel), KDLVectorToVector(Twist.rot) };
+}
+
 TArray<FRobotJoint> URobotUtilsFunctionLibrary::GetJointsFromChain(const FRobotChain& Chain, bool bIncludeFixed)
 {
 	TArray<FRobotJoint> Joints;
@@ -253,4 +272,22 @@ void URobotUtilsFunctionLibrary::GetJointLimitsFromChain(const FRobotChain& Chai
 			OutMax.Rotations.Add(FMath::DegreesToRadians(Segment.Joint.MaxJointLimit));
 		}
 	}
+}
+
+TArray<USceneComponent*> URobotUtilsFunctionLibrary::GetMoveableJointsFromChain(const TArray<USceneComponent*>& Chain)
+{
+	TArray<USceneComponent*> OutComponents = Chain;
+	OutComponents.RemoveAll([](USceneComponent* Component)
+	{
+		URobotJointComponent* JointComponent = Cast<URobotJointComponent>(Component);
+		if (JointComponent)
+		{
+			return JointComponent->Joint.Type == ERobotJointType::Fixed;
+		}
+		else
+		{
+			return true;
+		}
+	});
+	return OutComponents;
 }
